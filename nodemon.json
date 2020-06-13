@@ -1,6 +1,6 @@
 {
     "env": {
-        "MONGO_USER": "vicky_b",
+        "MONGO_USER": "vicky_mern",
         "MONGO_PASSWORD": "vicky123",
         "MONGO_DEFAULT_DATABASE": "MERNDemo"
     }
