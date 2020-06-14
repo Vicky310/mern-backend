@@ -4,23 +4,23 @@ const path = require('path');
 const { validationResult } = require('express-validator/check');
 
 const io = require('../socket');
-const Post = require('../models/post');
+const Product = require('../models/product');
 const User = require('../models/user');
 
-exports.getPosts = async (req, res, next) => {
+exports.getProducts = async (req, res, next) => {
   const currentPage = req.query.page || 1;
   const perPage = 2;
   try {
-    const totalItems = await Post.find().countDocuments();
-    const posts = await Post.find()
+    const totalItems = await Product.find().countDocuments();
+    const products = await Product.find()
       .populate('creator')
       .sort({ createdAt: -1 })
       .skip((currentPage - 1) * perPage)
       .limit(perPage);
 
     res.status(200).json({
-      message: 'Fetched posts successfully.',
-      posts: posts,
+      message: 'Fetched products successfully.',
+      products: products,
       totalItems: totalItems
     });
   } catch (err) {
@@ -31,7 +31,7 @@ exports.getPosts = async (req, res, next) => {
   }
 };
 
-exports.createPost = async (req, res, next) => {
+exports.createProduct = async (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     const error = new Error('Validation failed, entered data is incorrect.');
@@ -39,24 +39,26 @@ exports.createPost = async (req, res, next) => {
     throw error;
   }
   const title = req.body.title;
-  const content = req.body.content;
-  const post = new Post({
+  const description = req.body.description;
+  const price = req.body.price;
+  const product = new Product({
     title: title,
-    content: content,
+    description: description,
+    price: price,
     creator: req.userId
   });
   try {
-    await post.save();
+    await product.save();
     const user = await User.findById(req.userId);
-    user.posts.push(post);
+    user.products.push(product);
     await user.save();
-    io.getIO().emit('posts', {
+    io.getIO().emit('products', {
       action: 'create',
-      post: { ...post._doc, creator: { _id: req.userId, name: user.name } }
+      product: { ...product._doc, creator: { _id: req.userId, name: user.name } }
     });
     res.status(201).json({
-      message: 'Post created successfully!',
-      post: post,
+      message: 'Product created successfully!',
+      product: product,
       creator: { _id: user._id, name: user.name }
     });
   } catch (err) {
@@ -67,16 +69,16 @@ exports.createPost = async (req, res, next) => {
   }
 };
 
-exports.getPost = async (req, res, next) => {
-  const postId = req.params.postId;
-  const post = await Post.findById(postId);
+exports.getProduct = async (req, res, next) => {
+  const productId = req.params.productId;
+  const product = await Product.findById(productId);
   try {
-    if (!post) {
-      const error = new Error('Could not find post.');
+    if (!product) {
+      const error = new Error('Could not find product.');
       error.statusCode = 404;
       throw error;
     }
-    res.status(200).json({ message: 'Post fetched.', post: post });
+    res.status(200).json({ message: 'Product fetched.', product: product });
   } catch (err) {
     if (!err.statusCode) {
       err.statusCode = 500;
@@ -85,8 +87,8 @@ exports.getPost = async (req, res, next) => {
   }
 };
 
-exports.updatePost = async (req, res, next) => {
-  const postId = req.params.postId;
+exports.updateProduct = async (req, res, next) => {
+  const productId = req.params.productId;
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     const error = new Error('Validation failed, entered data is incorrect.');
@@ -94,24 +96,26 @@ exports.updatePost = async (req, res, next) => {
     throw error;
   }
   const title = req.body.title;
-  const content = req.body.content;
+  const description = req.body.description;
+  const price = req.body.price;
   try {
-    const post = await Post.findById(postId).populate('creator');
-    if (!post) {
-      const error = new Error('Could not find post.');
+    const product = await Product.findById(productId).populate('creator');
+    if (!product) {
+      const error = new Error('Could not find product.');
       error.statusCode = 404;
       throw error;
     }
-    if (post.creator._id.toString() !== req.userId) {
+    if (product.creator._id.toString() !== req.userId) {
       const error = new Error('Not authorized!');
       error.statusCode = 403;
       throw error;
     }
-    post.title = title;
-    post.content = content;
-    const result = await post.save();
-    io.getIO().emit('posts', { action: 'update', post: result });
-    res.status(200).json({ message: 'Post updated!', post: result });
+    product.title = title;
+    product.description = description;
+    product.price = price;
+    const result = await product.save();
+    io.getIO().emit('products', { action: 'update', product: result });
+    res.status(200).json({ message: 'Product updated!', product: result });
   } catch (err) {
     if (!err.statusCode) {
       err.statusCode = 500;
@@ -120,29 +124,29 @@ exports.updatePost = async (req, res, next) => {
   }
 };
 
-exports.deletePost = async (req, res, next) => {
-  const postId = req.params.postId;
+exports.deleteProduct = async (req, res, next) => {
+  const productId = req.params.productId;
   try {
-    const post = await Post.findById(postId);
+    const product = await Product.findById(productId);
 
-    if (!post) {
-      const error = new Error('Could not find post.');
+    if (!product) {
+      const error = new Error('Could not find product.');
       error.statusCode = 404;
       throw error;
     }
-    if (post.creator.toString() !== req.userId) {
+    if (product.creator.toString() !== req.userId) {
       const error = new Error('Not authorized!');
       error.statusCode = 403;
       throw error;
     }
     // Check logged in user
-    await Post.findByIdAndRemove(postId);
+    await Product.findByIdAndRemove(productId);
 
     const user = await User.findById(req.userId);
-    user.posts.pull(postId);
+    user.products.pull(productId);
     await user.save();
-    io.getIO().emit('posts', { action: 'delete', post: postId })
-    res.status(200).json({ message: 'Deleted post.' });
+    io.getIO().emit('products', { action: 'delete', product: productId })
+    res.status(200).json({ message: 'Deleted product.' });
   } catch (err) {
     if (!err.statusCode) {
       err.statusCode = 500;

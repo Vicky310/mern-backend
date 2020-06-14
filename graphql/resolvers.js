@@ -3,10 +3,10 @@ const validator = require('validator');
 const jwt = require('jsonwebtoken');
 
 const User = require('../models/user');
-const Post = require('../models/post');
+const Product = require('../models/product');
 
 module.exports = {
-  createUser: async function({ userInput }, req) {
+  createUser: async function ({ userInput }, req) {
     //   const email = args.userInput.email;
     const errors = [];
     if (!validator.isEmail(userInput.email)) {
@@ -38,7 +38,7 @@ module.exports = {
     const createdUser = await user.save();
     return { ...createdUser._doc, _id: createdUser._id.toString() };
   },
-  login: async function({ email, password }) {
+  login: async function ({ email, password }) {
     const user = await User.findOne({ email: email });
     if (!user) {
       const error = new Error('User not found.');
@@ -61,7 +61,7 @@ module.exports = {
     );
     return { token: token, userId: user._id.toString() };
   },
-  createPost: async function({ postInput }, req) {
+  createProduct: async function ({ productInput }, req) {
     if (!req.isAuth) {
       const error = new Error('Not authenticated!');
       error.code = 401;
@@ -69,16 +69,16 @@ module.exports = {
     }
     const errors = [];
     if (
-      validator.isEmpty(postInput.title) ||
-      !validator.isLength(postInput.title, { min: 5 })
+      validator.isEmpty(productInput.title) ||
+      !validator.isLength(productInput.title, { min: 5 })
     ) {
       errors.push({ message: 'Title is invalid.' });
     }
     if (
-      validator.isEmpty(postInput.content) ||
-      !validator.isLength(postInput.content, { min: 5 })
+      validator.isEmpty(productInput.description) ||
+      !validator.isLength(productInput.description, { min: 5 })
     ) {
-      errors.push({ message: 'Content is invalid.' });
+      errors.push({ message: 'Description is invalid.' });
     }
     if (errors.length > 0) {
       const error = new Error('Invalid input.');
@@ -92,22 +92,23 @@ module.exports = {
       error.code = 401;
       throw error;
     }
-    const post = new Post({
-      title: postInput.title,
-      content: postInput.content,
+    const product = new Product({
+      title: productInput.title,
+      description: productInput.description,
+      price: productInput.price,
       creator: user
     });
-    const createdPost = await post.save();
-    user.posts.push(createdPost);
+    const createdProduct = await product.save();
+    user.products.push(createdProduct);
     await user.save();
     return {
-      ...createdPost._doc,
-      _id: createdPost._id.toString(),
-      createdAt: createdPost.createdAt.toISOString(),
-      updatedAt: createdPost.updatedAt.toISOString()
+      ...createdProduct._doc,
+      _id: createdProduct._id.toString(),
+      createdAt: createdProduct.createdAt.toISOString(),
+      updatedAt: createdProduct.updatedAt.toISOString()
     };
   },
-  posts: async function({ page }, req) {
+  products: async function ({ page }, req) {
     if (!req.isAuth) {
       const error = new Error('Not authenticated!');
       error.code = 401;
@@ -117,14 +118,14 @@ module.exports = {
       page = 1;
     }
     const perPage = 2;
-    const totalPosts = await Post.find().countDocuments();
-    const posts = await Post.find()
+    const totalProducts = await Product.find().countDocuments();
+    const products = await Product.find()
       .sort({ createdAt: -1 })
       .skip((page - 1) * perPage)
       .limit(perPage)
       .populate('creator');
     return {
-      posts: posts.map(p => {
+      products: products.map(p => {
         return {
           ...p._doc,
           _id: p._id.toString(),
@@ -132,57 +133,57 @@ module.exports = {
           updatedAt: p.updatedAt.toISOString()
         };
       }),
-      totalPosts: totalPosts
+      totalProducts: totalProducts
     };
   },
-  post: async function({ id }, req) {
+  product: async function ({ id }, req) {
     if (!req.isAuth) {
       const error = new Error('Not authenticated!');
       error.code = 401;
       throw error;
     }
-    const post = await Post.findById(id).populate('creator');
-    if (!post) {
-      const error = new Error('No post found!');
+    const product = await Product.findById(id).populate('creator');
+    if (!product) {
+      const error = new Error('No product found!');
       error.code = 404;
       throw error;
     }
     return {
-      ...post._doc,
-      _id: post._id.toString(),
-      createdAt: post.createdAt.toISOString(),
-      updatedAt: post.updatedAt.toISOString()
+      ...product._doc,
+      _id: product._id.toString(),
+      createdAt: product.createdAt.toISOString(),
+      updatedAt: product.updatedAt.toISOString()
     };
   },
-  updatePost: async function({ id, postInput }, req) {
+  updateProduct: async function ({ id, productInput }, req) {
     if (!req.isAuth) {
       const error = new Error('Not authenticated!');
       error.code = 401;
       throw error;
     }
-    const post = await Post.findById(id).populate('creator');
-    if (!post) {
-      const error = new Error('No post found!');
+    const product = await Product.findById(id).populate('creator');
+    if (!product) {
+      const error = new Error('No product found!');
       error.code = 404;
       throw error;
     }
-    if (post.creator._id.toString() !== req.userId.toString()) {
+    if (product.creator._id.toString() !== req.userId.toString()) {
       const error = new Error('Not authorized!');
       error.code = 403;
       throw error;
     }
     const errors = [];
     if (
-      validator.isEmpty(postInput.title) ||
-      !validator.isLength(postInput.title, { min: 5 })
+      validator.isEmpty(productInput.title) ||
+      !validator.isLength(productInput.title, { min: 5 })
     ) {
       errors.push({ message: 'Title is invalid.' });
     }
     if (
-      validator.isEmpty(postInput.content) ||
-      !validator.isLength(postInput.content, { min: 5 })
+      validator.isEmpty(productInput.description) ||
+      !validator.isLength(productInput.description, { min: 5 })
     ) {
-      errors.push({ message: 'Content is invalid.' });
+      errors.push({ message: 'Description is invalid.' });
     }
     if (errors.length > 0) {
       const error = new Error('Invalid input.');
@@ -190,40 +191,41 @@ module.exports = {
       error.code = 422;
       throw error;
     }
-    post.title = postInput.title;
-    post.content = postInput.content;
-    const updatedPost = await post.save();
+    product.title = productInput.title;
+    product.description = productInput.description;
+    product.price = productInput.price;
+    const updatedProduct = await product.save();
     return {
-      ...updatedPost._doc,
-      _id: updatedPost._id.toString(),
-      createdAt: updatedPost.createdAt.toISOString(),
-      updatedAt: updatedPost.updatedAt.toISOString()
+      ...updatedProduct._doc,
+      _id: updatedProduct._id.toString(),
+      createdAt: updatedProduct.createdAt.toISOString(),
+      updatedAt: updatedProduct.updatedAt.toISOString()
     };
   },
-  deletePost: async function({ id }, req) {
+  deleteProduct: async function ({ id }, req) {
     if (!req.isAuth) {
       const error = new Error('Not authenticated!');
       error.code = 401;
       throw error;
     }
-    const post = await Post.findById(id);
-    if (!post) {
-      const error = new Error('No post found!');
+    const product = await Product.findById(id);
+    if (!product) {
+      const error = new Error('No product found!');
       error.code = 404;
       throw error;
     }
-    if (post.creator.toString() !== req.userId.toString()) {
+    if (product.creator.toString() !== req.userId.toString()) {
       const error = new Error('Not authorized!');
       error.code = 403;
       throw error;
     };
-    await Post.findByIdAndRemove(id);
+    await Product.findByIdAndRemove(id);
     const user = await User.findById(req.userId);
-    user.posts.pull(id);
+    user.products.pull(id);
     await user.save();
     return true;
   },
-  user: async function(args, req) {
+  user: async function (args, req) {
     if (!req.isAuth) {
       const error = new Error('Not authenticated!');
       error.code = 401;
@@ -237,7 +239,7 @@ module.exports = {
     }
     return { ...user._doc, _id: user._id.toString() };
   },
-  updateStatus: async function({ status }, req) {
+  updateStatus: async function ({ status }, req) {
     if (!req.isAuth) {
       const error = new Error('Not authenticated!');
       error.code = 401;

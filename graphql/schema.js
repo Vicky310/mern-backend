@@ -1,10 +1,11 @@
 const { buildSchema } = require('graphql');
 
 module.exports = buildSchema(`
-    type Post {
+    type Product {
         _id: ID!
         title: String!
-        content: String!
+        description: String!
+        price: String!
         creator: User!
         createdAt: String!
         updatedAt: String!
@@ -16,7 +17,7 @@ module.exports = buildSchema(`
         email: String!
         password: String
         status: String!
-        posts: [Post!]!
+        products: [Product!]!
     }
 
     type AuthData {
@@ -24,9 +25,9 @@ module.exports = buildSchema(`
         userId: String!
     }
 
-    type PostData {
-        posts: [Post!]!
-        totalPosts: Int!
+    type ProductData {
+        products: [Product!]!
+        totalProducts: Int!
     }
 
     input UserInputData {
@@ -35,23 +36,24 @@ module.exports = buildSchema(`
         password: String!
     }
 
-    input PostInputData {
+    input ProductInputData {
         title: String!
-        content: String!
+        description: String!
+        price: String!
     }
 
     type RootQuery {
         login(email: String!, password: String!): AuthData!
-        posts(page: Int): PostData!
-        post(id: ID!): Post!
+        products(page: Int): ProductData!
+        product(id: ID!): Product!
         user: User!
     }
 
     type RootMutation {
         createUser(userInput: UserInputData): User!
-        createPost(postInput: PostInputData): Post!
-        updatePost(id: ID!, postInput: PostInputData): Post!
-        deletePost(id: ID!): Boolean
+        createProduct(productInput: ProductInputData): Product!
+        updateProduct(id: ID!, productInput: ProductInputData): Product!
+        deleteProduct(id: ID!): Boolean
         updateStatus(status: String!): User!
     }
 
